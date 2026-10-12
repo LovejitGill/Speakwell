@@ -1,8 +1,13 @@
 """Verify conversation lineage, label isolation and failure accounting."""
 
 import asyncio
+import json
 from copy import deepcopy
 
+import httpx
+import pytest
+
+import conversation_sessions_eval as evaluation
 from conversation_sessions_eval import collect, summarize
 
 
@@ -93,3 +98,66 @@ def test_summary_retains_failed_latency_and_uses_all_turns_as_denominator():
     assert summary["within_two_seconds"] == 1
     assert summary["timing"]["maximum_seconds"] == 3
     assert summary["human_useful"] is None
+
+
+@pytest.mark.parametrize("model_state", ["matching", "missing", "wrong_digest", "http_error"])
+def test_run_checks_protocol_model_before_warmup_and_preserves_attempt(
+    tmp_path, monkeypatch, model_state
+):
+    output = tmp_path / "attempt.json"
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text("{}")
+    # The session protocol, not the module's default, owns the expected digest.
+    protocol = {
+        "model_digest": "protocol-specific-digest",
+        "dataset_sha256": "controlled-cases",
+        "source_sha256": {},
+    }
+    monkeypatch.setattr(evaluation, "load_protocol", lambda _: (protocol, []))
+    requests, probes = [], []
+    real_client = httpx.AsyncClient
+
+    def transport(request):
+        requests.append(request.url.path)
+        # The initial attempt must survive even a failed readiness request.
+        assert json.loads(output.read_text())["rows"] == []
+        if request.url.path == "/api/tags":
+            model = {"name": evaluation.base.MODEL, "digest": protocol["model_digest"]}
+            if model_state == "wrong_digest":
+                model["digest"] = "unexpected"
+            return httpx.Response(
+                503 if model_state == "http_error" else 200,
+                json={"models": [] if model_state == "missing" else [model]},
+            )
+        if request.url.path == "/v2/check":
+            return httpx.Response(200, json={"software": {"version": "6.6"}})
+        return httpx.Response(200, json={"done": True})
+
+    def client(**kwargs):
+        assert kwargs == {"trust_env": False, "timeout": 30}
+        return real_client(transport=httpx.MockTransport(transport), **kwargs)
+
+    async def reply(plan, history, budget, client):
+        probes.append((plan["text"], history, budget))
+        return {"path": "model_selected"}
+
+    monkeypatch.setattr(evaluation.httpx, "AsyncClient", client)
+    monkeypatch.setattr(evaluation.flow, "_reply", reply)
+    if model_state == "matching":
+        report = asyncio.run(evaluation.run(output, directory=tmp_path))
+        assert report == json.loads(output.read_text())
+        assert report["model"]["digest"] == protocol["model_digest"]
+        assert requests == ["/api/tags", "/api/chat", "/v2/check"]
+        assert [p[0] for p in probes] == ["I prepared a meal.", "I packed my clothes."]
+        assert report["summary"]["completed"] == 0
+    else:
+        error = httpx.HTTPStatusError if model_state == "http_error" else ValueError
+        with pytest.raises(error):
+            asyncio.run(evaluation.run(output, directory=tmp_path))
+        assert requests == ["/api/tags"]
+        assert not probes
+        assert "summary" not in json.loads(output.read_text())
+    before = output.read_bytes()
+    with pytest.raises(ValueError, match="unused output"):
+        asyncio.run(evaluation.run(output, directory=tmp_path))
+    assert output.read_bytes() == before

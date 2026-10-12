@@ -6,8 +6,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from benchmark import ROOT, utf16_span
 from grammar_explanation_reasons import explain_with_reason
+from runtime_support import ROOT, utf16_span
 
 VARIANT = "broader-rules-gap-fixes-v1"
 COUNT_RULE = "SPEAKWELL_COUNT_HEAD"

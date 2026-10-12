@@ -209,8 +209,6 @@ def plan_food(text, history=()):
             },
         ]
     )
-    if not choices:
-        return None
     # Acknowledge explicit permissions too when a separate active preference exists.
     acknowledged = list(constraints.values())
     return {

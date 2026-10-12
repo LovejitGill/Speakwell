@@ -6,7 +6,7 @@ Exact full-sentence agreement is required. Agreement between tools is not proof.
 
 import re
 
-from benchmark import utf16_span
+from runtime_support import utf16_span
 
 VARIANT = "languagetool-backed-explanations-v1"
 FIXED = {

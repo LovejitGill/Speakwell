@@ -233,3 +233,18 @@ labels and ten shuffled outputs before deciding whether to expand this experimen
 Verification at implementation: 160 tests passed; Ruff, uv lock consistency,
 and shell syntax checks passed. LanguageTool was stopped after recording the
 comparison; start it again with the command above when needed.
+
+
+### Shared helpers and frozen protocols
+
+Conversation evaluation runners share orchestration in `conversation_eval_support.py`.
+Runtime path and UTF-16 span helpers live in `runtime_support.py`; `benchmark.py`
+continues to export its historical helper names. SQLite lifecycle handling is
+shared through `db.py`, with existing per-caller transaction policies preserved.
+
+Historical source hashes intentionally reject refactored source files. Do not
+replace those hashes to make an old protocol accept new code. Use a separately
+versioned protocol for a new evaluation and include shared helpers and transitive
+implementation dependencies in its source manifest. Tests of historical protocols
+use existing snapshots whose hashes match those protocols; this does not transfer
+historical quality results to the refactored candidate.

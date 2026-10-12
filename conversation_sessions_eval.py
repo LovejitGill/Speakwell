@@ -12,6 +12,7 @@ import httpx
 import bounded_conversation as base
 import dialogue_planner as flow
 from benchmark import ROOT, digest, save, timing
+from conversation_eval_support import prepared_model
 from conversation_quality_eval import verify as verify_grammar
 
 DIRECTORY = ROOT / "evaluation/conversation_quality/planned_v4/revision_2"
@@ -134,13 +135,9 @@ async def run(output, *, directory=DIRECTORY):
     save(output, report, exclusive=True)
     began = perf_counter()
     async with httpx.AsyncClient(trust_env=False, timeout=30) as client:
-        response = await client.get(base.HOST + "/api/tags")
-        response.raise_for_status()
-        model = next(
-            (m for m in response.json()["models"] if m["name"] == base.MODEL), None
+        model = await prepared_model(
+            client, base.HOST, base.MODEL, protocol["model_digest"]
         )
-        if not model or model["digest"] != protocol["model_digest"]:
-            raise ValueError("Expected the prepared local model digest.")
         report["model"] = model
         response = await client.post(
             base.HOST + "/api/chat",

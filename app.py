@@ -28,7 +28,6 @@ def restore_page():
         return
     st.session_state.conversation = None
     st.session_state.turns = []
-    st.session_state.turn_number = 1
     st.session_state.load_error = None
     session_id = st.query_params.get("session")
     if session_id:
@@ -40,7 +39,6 @@ def restore_page():
                 raise ValueError("Unknown saved practice settings.")
             st.session_state.conversation = session
             st.session_state.turns = turns
-            st.session_state.turn_number = len(turns) + 1
         except (ValueError, db.StorageError) as exc:
             st.session_state.load_error = str(exc)
 
@@ -51,7 +49,6 @@ def new_conversation():
     for key in (
         "conversation",
         "turns",
-        "turn_number",
         "load_error",
         "draft",
         "clear_draft",
@@ -216,9 +213,8 @@ def send_separate(text, session, *, planned=False):
     if job:
         turn["id"] = job["turn_id"]
     st.session_state.turns.append(turn)
-    st.session_state.turn_number += 1
     st.session_state.clear_draft = True
-    render_turn(st.session_state.turn_number - 1, turn)
+    render_turn(len(st.session_state.turns), turn)
     if job:
         grammar_worker().start(job)
     st.rerun()
@@ -354,7 +350,7 @@ def main():
     with st.container(border=True, key="composer"):
         st.subheader("Your next message")
         st.caption(
-            f"Turn #{st.session_state.turn_number} · Record or type. You choose when to send."
+            f"Turn #{len(st.session_state.turns) + 1} · Record or type. You choose when to send."
         )
         record_column, review_column = st.columns([1, 1.25], gap="large")
         with record_column:
@@ -426,7 +422,6 @@ def main():
                 "saved": saved,
             }
         )
-        st.session_state.turn_number += 1
         st.session_state.clear_draft = True
         st.rerun()
 

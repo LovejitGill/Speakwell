@@ -99,3 +99,21 @@ def test_interrupted_job_not_silently_replayed(saved):
     check.assert_not_called()
     assert not store.finish(job, offered())
     assert store.load("a", path)[job["turn_id"]]["state"] == "unavailable"
+
+
+def test_reply_and_job_roll_back_together_when_details_fail(tmp_path):
+    path = tmp_path / "atomic.sqlite"
+    db.init_db(path)
+    db.create_session("a", "beginner", "introductions", path)
+    with pytest.raises(TypeError):
+        store.save_reply(
+            "a",
+            "I like tea.",
+            "Which tea?",
+            0.1,
+            perf_counter(),
+            path,
+            conversation={"invalid_json_value": object()},
+        )
+    assert db.load_session("a", path)[1] == []
+    assert store.load("a", path) == {}

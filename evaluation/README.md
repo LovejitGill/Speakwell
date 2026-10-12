@@ -1,4 +1,48 @@
-# Focused feedback-quality experiment
+# Evaluation evidence and experiment history
+
+## Current evidence index
+
+Navigation reviewed on 2026-10-11. This index identifies the latest recorded
+integration and review status; it does not report a new model run or test run.
+Experiment names such as `planned_v4` are not application release tags.
+
+| Area | Evidence to read | Recorded status and limits |
+|---|---|---|
+| Optional conversation mode | [planned_v4 decision](conversation_quality/planned_v4/decision.json), [actual replies](conversation_quality/planned_v4/review.md), [review worksheet](conversation_quality/planned_v4/review_draft.json) | Available as an optional Streamlit mode; the default was not changed. The assistant provisionally rated 22/24 turns usable, with two needing improvement. Owner review remains pending; this is not a confirmed human quality score. |
+| Conversation integration checks | [App integration results](conversation_quality/planned_v4/app_integration/results.json), [protocol](conversation_quality/planned_v4/app_integration/protocol.json), [app instructions](../README.md) | Eight real-service AppTest turns completed, including refresh verification. Recorded reply/render times were below two seconds; this does not establish spoken end-to-end latency. Full grammar processing took 8.388–25.391 seconds and blocked the next send during that run. |
+| Targeted grammar validation | [Decision](detection_flow_validation/decision.json), [approved output review](detection_flow_validation/output_review_approved.json), [recorded results](detection_flow_validation/results.md) | All 16 corrections were approved as useful and all 16 acceptable inputs were preserved. Coverage was limited to did-questions and counted nouns; this is not a broad English grammar score. The decision's pre-integration status describes that experiment checkpoint; see the app instructions for the later optional integration. |
+| Reviewed development benchmark | [Final scorecard](benchmark_v2/final_scorecard.md), [final scores](benchmark_v2/final_development_scores.json) | All 60 labels and 120 response judgments were confirmed. Useful feedback was 15/30 for LanguageTool and 17/30 for Qwen; neither met the 90% target. These are development results, not unseen-test performance. |
+| Earlier conversation comparisons | [Joint comparison](conversation_quality/joint_results.md) | Historical prompt/model and latency evidence. Consult each experiment's own review and decision; an older pending or failed candidate is not the current app mode. |
+
+## How to read and preserve the evidence
+
+- **Inputs and protocols** identify the cases, candidate, settings and gates used
+  for each experiment. Repeated inputs may intentionally belong to distinct runs.
+- **Raw results** preserve actual outputs, rejections, failures and timings.
+  Final reports and readable summaries do not replace the original observations.
+- **Reviews and approvals** record judgments separately from model output.
+  A pending draft can remain necessary even after approval: verification code
+  checks original and approved label hashes, and approval records link earlier
+  artifacts. Do not interpret an old pending worksheet as the final verdict.
+- **Source snapshots** exist both inside `frozen/` and as `.txt` snapshots outside
+  it. Preserve their contents and paths along with the protocols that identify them.
+- **Failure and timing notes** explain incomplete or confounded runs; retain these
+  caveats when comparing outcomes.
+
+The [novelty record](detection_flow_validation/novelty_check.json) identifies 83
+prior JSON artifacts by path and hash. Even apparently inactive drafts can be
+part of that evidence trail. Check references and recorded hashes before editing,
+consolidating, moving or removing an artifact.
+
+## Historical checkpoints and original protocol
+
+Everything below preserves earlier experiment notes. Words such as **current**,
+**latest**, **pending** and **next**, and statements about absent integration,
+refer to their original checkpoint, not necessarily today's application. Use the
+index above to find the latest recorded evidence. These notes are retained rather
+than rewritten so that earlier decisions and limitations remain understandable.
+
+### Original focused feedback-quality experiment
 
 **2026-10-05 conversation checkpoint:** The separate
 [joint conversation-quality/latency report](conversation_quality/joint_results.md)

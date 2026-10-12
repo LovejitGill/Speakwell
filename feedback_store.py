@@ -3,17 +3,17 @@
 import json
 import sqlite3
 import uuid
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from time import perf_counter
 
+from db import _connection
 from errors import StorageError
 
 
 @contextmanager
 def connection(path):
     try:
-        with closing(sqlite3.connect(path, timeout=3)) as conn, conn:
-            conn.row_factory = sqlite3.Row
+        with _connection(path, transaction=True, rows=True) as conn:
             yield conn
     except (sqlite3.Error, OSError, ValueError) as exc:
         raise StorageError(

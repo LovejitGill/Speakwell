@@ -61,8 +61,13 @@ def frozen_candidate(monkeypatch, tmp_path):
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)
         source = flow.ROOT / name
-        if name == "grammar_explanation_reasons.py":
-            source = flow.DIRECTORY / "frozen/grammar_explanation_reasons.py.txt"
+        snapshots = {
+            "grammar_explanation_reasons.py": "evaluation/detection_flow_validation/frozen/grammar_explanation_reasons.py.txt",
+            "grammar_gap_detector.py": "evaluation/detection_gaps/grammar_gap_detector.py.frozen.txt",
+            "grammar_rule_detector.py": "evaluation/broader_rules/detector_frozen.txt",
+        }
+        if name in snapshots:
+            source = flow.ROOT / snapshots[name]
         target.symlink_to(source)
     monkeypatch.setattr(flow, "ROOT", tmp_path)
 

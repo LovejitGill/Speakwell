@@ -1,4 +1,4 @@
-"""Auditable, opt-in grammar benchmarks; never used by the tutor UI."""
+"""Auditable, opt-in grammar benchmarks with compatible shared-helper exports."""
 
 import argparse
 import hashlib
@@ -16,8 +16,8 @@ import httpx
 
 import llm_client
 from grammar import GRAMMAR_PROMPT, GRAMMAR_SCHEMA, check_grammar
+from runtime_support import ROOT, utf16_span  # noqa: F401 -- preserve benchmark imports
 
-ROOT = Path(__file__).resolve().parent
 LT_URL = "http://127.0.0.1:8081"
 
 
@@ -61,22 +61,6 @@ def reviewed(data):
         and c["label_review"].get("rationale", "").strip()
         for c in data["cases"]
     )
-
-
-def utf16_span(text, offset, length):
-    """Java offsets count UTF-16 units; Python indexes Unicode code points."""
-    raw = text.encode("utf-16-le")
-    if (
-        type(offset) is not int
-        or type(length) is not int
-        or offset < 0
-        or length < 0
-        or 2 * (offset + length) > len(raw)
-    ):
-        raise ValueError("Invalid LanguageTool span.")
-    start = len(raw[: 2 * offset].decode("utf-16-le"))
-    end = start + len(raw[2 * offset : 2 * (offset + length)].decode("utf-16-le"))
-    return start, end
 
 
 def languagetool(text, client):

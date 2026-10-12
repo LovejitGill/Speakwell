@@ -10,8 +10,8 @@ from time import perf_counter
 
 import httpx
 
-from benchmark import utf16_span
 from grammar_gap_detector import explain_with_gaps
+from runtime_support import utf16_span
 
 HOST = "http://127.0.0.1:8081"
 PROVENANCE = "resident_languagetool_rule_only"

@@ -147,8 +147,9 @@ connection failure, write failure, new conversations, and missing-session recove
 - Read `restore_page()` first, then the settings/start path, transcript loop,
   and Send branch in `app.py`. Recording recovery lives in `voice_input.py`;
   presentation helpers and local styles live in `ui.py` and `assets/style.css`.
-- `turn_number` counts generated exchanges, including a visible unsaved reply.
-  After refresh, it is reconstructed from persisted rows, so unsaved turns vanish.
+- The next turn number is derived from the displayed transcript length, including
+  a visible unsaved reply; there is no separately maintained counter. After refresh,
+  the transcript is restored from persisted rows, so unsaved turns vanish.
 - Save failures show a persistent **Not saved** warning while preserving the
   reply on the current page. There is no save-only retry control yet.
 - Errors keep the draft available. A new successful submission clears it and

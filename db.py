@@ -2,12 +2,25 @@
 
 import json
 import sqlite3
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from errors import StorageError
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "speakwell.sqlite"
+
+
+@contextmanager
+def _connection(path, *, transaction=False, rows=False):
+    """Close every connection; commit/rollback only where callers already did."""
+    with closing(sqlite3.connect(path, timeout=3)) as connection:
+        if rows:
+            connection.row_factory = sqlite3.Row
+        if transaction:
+            with connection:
+                yield connection
+        else:
+            yield connection
 
 
 def validate_session_id(session_id: str) -> None:
@@ -23,7 +36,7 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
         path = Path(db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         # A connection's transaction context commits/rolls back; closing closes it.
-        with closing(sqlite3.connect(path, timeout=3)) as connection, connection:
+        with _connection(path, transaction=True) as connection:
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS turns (
                     id INTEGER PRIMARY KEY,
@@ -66,7 +79,7 @@ def insert_turn(
     if not isinstance(feedback, list) or any(not isinstance(s, str) for s in feedback):
         raise ValueError("Feedback must be a list of strings.")
     try:
-        with closing(sqlite3.connect(db_path, timeout=3)) as connection, connection:
+        with _connection(db_path, transaction=True) as connection:
             cursor = connection.execute(
                 """INSERT INTO turns
                 (session_id, learner_text, tutor_reply, feedback_json)
@@ -93,8 +106,7 @@ def get_history(
     if type(limit) is not int or not 1 <= limit <= 20:
         raise ValueError("History limit must be an integer from 1 to 20.")
     try:
-        with closing(sqlite3.connect(db_path, timeout=3)) as connection:
-            connection.row_factory = sqlite3.Row
+        with _connection(db_path, rows=True) as connection:
             rows = connection.execute(
                 "SELECT * FROM turns WHERE session_id = ? ORDER BY id DESC LIMIT ?",
                 (session_id, limit),
@@ -115,7 +127,7 @@ def create_session(session_id: str, level: str, scenario: str, db_path=DEFAULT_D
     """Persist UI settings so refresh cannot silently change the practice mode."""
     validate_session_id(session_id)
     try:
-        with closing(sqlite3.connect(db_path, timeout=3)) as connection, connection:
+        with _connection(db_path, transaction=True) as connection:
             connection.execute(
                 "INSERT INTO sessions VALUES (?, ?, ?)", (session_id, level, scenario)
             )
@@ -129,8 +141,7 @@ def load_session(session_id: str, db_path=DEFAULT_DB_PATH) -> tuple[dict, list[d
     """Load UI metadata and its full transcript once on initial page load."""
     validate_session_id(session_id)
     try:
-        with closing(sqlite3.connect(db_path, timeout=3)) as connection:
-            connection.row_factory = sqlite3.Row
+        with _connection(db_path, rows=True) as connection:
             session = connection.execute(
                 "SELECT * FROM sessions WHERE session_id = ?", (session_id,)
             ).fetchone()

@@ -48,7 +48,8 @@ def test_three_turns_rerun_and_refresh(ui):
     start(at)
     for i in range(3):
         send(at, f"Message {i}")
-    assert at.session_state.turn_number == 4
+    assert len(at.session_state.turns) == 3
+    assert any(c.value.startswith("Turn #4 ·") for c in at.caption)
     assert len(at.chat_message) == 6
     assert [t["learner_text"] for t in at.session_state.turns] == [
         f"Message {i}" for i in range(3)
@@ -62,7 +63,8 @@ def test_three_turns_rerun_and_refresh(ui):
     fresh.query_params["session"] = session_id
     fresh.run()
     assert not fresh.exception
-    assert fresh.session_state.turn_number == 4
+    assert len(fresh.session_state.turns) == 3
+    assert any(c.value.startswith("Turn #4 ·") for c in fresh.caption)
     assert len(fresh.chat_message) == 6
     assert session["level"] == fresh.selectbox[0].value == "intermediate"
     assert chat.call_count == 3
@@ -78,7 +80,8 @@ def test_blank_and_failed_turn_keep_counter_and_draft(ui):
     send(at, "Hello")
     assert "Cannot reach" in at.error[0].value
     assert at.text_area[0].value == "Hello"
-    assert at.session_state.turn_number == 1
+    assert len(at.session_state.turns) == 0
+    assert any(c.value.startswith("Turn #1 ·") for c in at.caption)
     assert not at.chat_message
 
 
@@ -94,6 +97,13 @@ def test_unsaved_reply_stays_visible(ui, monkeypatch):
     at.run()
     assert "Not saved" in at.warning[0].value
     assert chat.call_count == 1
+    assert any(c.value.startswith("Turn #2 ·") for c in at.caption)
+    fresh = AppTest.from_file(APP)
+    fresh.query_params["session"] = at.query_params["session"][0]
+    fresh.run()
+    assert not fresh.exception and not fresh.chat_message
+    assert any(c.value.startswith("Turn #1 ·") for c in fresh.caption)
+    assert chat.call_count == 1
 
 
 def test_new_conversation_keeps_old_rows_and_clears_display(ui):
@@ -102,7 +112,7 @@ def test_new_conversation_keeps_old_rows_and_clears_display(ui):
     send(at, "First conversation")
     old_id = at.session_state.conversation["session_id"]
     at.button(key="new").click().run()
-    assert at.session_state.turn_number == 1
+    assert len(at.session_state.turns) == 0
     assert not at.chat_message
     assert len(db.load_session(old_id, path)[1]) == 1
     start(at)
@@ -141,7 +151,7 @@ def test_opening_prompt_needs_no_model_call_or_saved_turn(ui):
     chat.assert_not_called()
     session_id = at.session_state.conversation["session_id"]
     assert db.load_session(session_id, path)[1] == []
-    assert at.session_state.turn_number == 1
+    assert len(at.session_state.turns) == 0
 
 
 def test_transcript_review_then_send_uses_existing_pipeline(ui, monkeypatch):
@@ -161,7 +171,7 @@ def test_transcript_review_then_send_uses_existing_pipeline(ui, monkeypatch):
     send(at, "I enjoy hiking with friends.")
     chat.assert_called_once()
     assert at.session_state.turns[0]["learner_text"] == "I enjoy hiking with friends."
-    assert at.session_state.turn_number == 2
+    assert len(at.session_state.turns) == 1
 
 
 def test_transcription_failure_preserves_draft_and_history(ui, monkeypatch):
@@ -198,14 +208,14 @@ def test_failed_send_is_safe_and_retry_saves_once(ui, failure, code):
     assert code in at.error[0].value
     assert "private content" not in at.error[0].value
     assert at.text_area(key="draft").value == "I enjoy hiking."
-    assert at.session_state.turn_number == 1
+    assert len(at.session_state.turns) == 0
     session_id = at.session_state.conversation["session_id"]
     assert not db.load_session(session_id, path)[1]
     chat.side_effect = None
     at.button(key="send").click().run()
     assert not at.exception
     assert len(db.load_session(session_id, path)[1]) == 1
-    assert at.session_state.turn_number == 2
+    assert len(at.session_state.turns) == 1
 
 
 def test_real_silence_validation_never_calls_tutor(ui, monkeypatch):
@@ -263,7 +273,7 @@ def test_blank_transcript_is_a_persistent_retry_not_success(
     assert (
         len(db.load_session(at.session_state.conversation["session_id"], path)[1]) == 1
     )
-    assert at.session_state.turn_number == 2
+    assert len(at.session_state.turns) == 1
     transcribe.assert_called_once()
     chat.assert_not_called()
 
